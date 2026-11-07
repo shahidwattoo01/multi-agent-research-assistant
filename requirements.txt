@@ -13,3 +13,4 @@ uvicorn[standard]>=0.29
 autogen-agentchat>=0.7.5
 autogen-ext[anthropic]>=0.7.5
 tiktoken>=0.7
+google-generativeai>=0.8
