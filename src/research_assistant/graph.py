@@ -1,4 +1,4 @@
-"""LangGraph orchestration.
+﻿"""LangGraph orchestration.
 
     START -> planner -> research (fan-out, one branch per pending sub-task) -> critic
                              ^                                                  |
@@ -33,6 +33,7 @@ from research_assistant.agents import (
 )
 from research_assistant.config import Settings, get_settings
 from research_assistant.events import Event, EventBus
+import os
 from research_assistant.llm import ClaudeLLM, LLMClient, UsageTracker
 from research_assistant.memory import SharedMemory
 from research_assistant.models import (
@@ -144,6 +145,15 @@ def build_graph(team: ResearchTeam, settings: Settings):
     return graph.compile()
 
 
+
+
+def _make_llm(settings) -> LLMClient:
+    if os.environ.get("GOOGLE_API_KEY") and not os.environ.get("ANTHROPIC_API_KEY"):
+        from research_assistant.gemini_llm import GeminiLLM
+        return GeminiLLM(model=settings.model)
+    return ClaudeLLM(max_tokens=settings.max_tokens, enable_fallbacks=settings.enable_fallbacks)
+
+
 class ResearchOrchestrator:
     """Wires settings, LLM, tools and shared memory into a runnable research pipeline."""
 
@@ -173,10 +183,7 @@ class ResearchOrchestrator:
         settings = settings or get_settings()
         return cls(
             settings,
-            llm
-            or ClaudeLLM(
-                max_tokens=settings.max_tokens, enable_fallbacks=settings.enable_fallbacks
-            ),
+            llm or _make_llm(settings),
             search or build_search_provider(settings.search_provider, settings.tavily_api_key),
             fetcher or HttpPageFetcher(settings.fetch_timeout, settings.max_page_chars),
         )
@@ -279,3 +286,4 @@ def _usage_delta(before, tracker: UsageTracker):
             "tool_calls": after.tool_calls - before.tool_calls,
         }
     )
+
